@@ -1,27 +1,25 @@
 #!/usr/bin/env python3
 
 """
-Dragon Cafe Monolithic Application with Menu Microservice | Author: Sam Griffith | Org: Alta3 Research Inc.
+Dragon Cafe Fortune Cookie Microservice | Author: Sam Griffith | Org: Alta3 Research Inc.
 
-This monolithic application is a Chinese Restaurant website,
-with the addition of the menu microservice.
+This Fortune Cookie Microservice is the third part of the monolithic application of a Chinese Restaurant website that has been broken out into it's own service.
 """
 
 from aiohttp import web
 import jinja2
 from pathlib import Path
 import random
-import os
 import requests
 import socket
-import json
+import os
 
-HOST = os.getenv("DRAGON_HOST", "0.0.0.0")
+HOST = os.getenv("FORTUNE_HOST", "0.0.0.0")
 LOCAL_IP = socket.gethostbyname(socket.gethostname())
-PORT = os.getenv("DRAGON_PORT", 2225)
+PORT = os.getenv("FORTUNE_PORT", 2229)
 REG_ADDR = os.getenv("SR_ADDRESS", "127.0.0.1")
 REG_PORT = os.getenv("SR_PORT", 55555)
-SERVICE = __file__.rstrip(".py")
+SERVICE = os.path.basename(__file__).rstrip(".py")
 
 
 class Page:
@@ -49,81 +47,30 @@ class Page:
 def routes(app: web.Application) -> None:
     app.add_routes(
         [
-            web.get("/", home),
-            web.get("/login", login),
-            web.post("/logging_in", logging_in),
-            web.get("/closed_cookie", closed_cookie),
+            web.get("/", fortune_cookie),
             web.get("/fortune_cookie", fortune_cookie),
-            web.get("/menu", menu),
-            web.get("/v2/menu", menu_v2),
+            web.get("/fortune_cookie/fortune", fortune),
+            web.get("/fortune", fortune),
         ]
     )
 
 
-async def menu_v2(request) -> web.Response:
-    print(request)
-    menu_svc = requests.get(f"http://{REG_ADDR}:{REG_PORT}/get_one/menu").text
-    print(menu_svc)
-    menu_host = json.loads(menu_svc)
-    menu_ip = menu_host['endpoints'][0]
-    menu_port = menu_host['endpoints'][1]
-    r = requests.get(f"http://{menu_ip}:{menu_port}/menu")
-    return web.Response(text=r.text, content_type='text/html')
-
-
-async def home(request) -> web.Response:
-    """
-    This is the home page for the website
-    """
-    page = Page(filename="index.html")
-    return page.render()
-
-
-async def logging_in(request):
-    print(f"logging_in: {request}")
-    if request.method == 'POST':
-        data = await request.post()
-        name = data['name']
-        print("POSTED")
-        print(name)
-        # TODO - Add authentication logic
-        poodle = await login(request, name=name)
-        return poodle
-
-
-async def login(request, name=None):
-    """
-    This is the login page for the website
-    """
-    print(f"login: {request}")
-    # if request.query.get('name') is not None:
-    if name is not None:
-        print("We got something here!")
-        # TODO - Add authentication logic
-        resp = web.Response(text=name)
-        page = Page(filename="hello.html", args={"name": name})
-        print("Cookies Set?")
-        return page.render()
-    else:
-        print("No name has been sent yet!")
-        args = {"name": name}
-        page = Page(filename="login.html", args=args)
-        return page.render()
-
-
-async def closed_cookie(request) -> web.Response:
-    """
-    This is the primary landing page for the fortune service.
-    """
-    page = Page(filename="cookie.html")
-    return page.render()
-
-
 async def fortune_cookie(request) -> web.Response:
     """
-    This is the primary landing page for the fortune service.
-    """
+    This is the initial landing page for the fortune_cookie service.
 
+    Click on the link provided to retrieve your fortune!
+    """
+    print(request)
+    page = Page(filename="fortune_cookie.html")
+    return page.render()
+
+
+async def fortune(request) -> web.Response:
+    """
+    This returns a randomly picked aphorism as a part of the fortune_cookie service.
+    """
+    print(request)
     possible = [
         "People are naturally attracted to you.",
         "You learn from your mistakes... You will learn a lot today.",
@@ -163,7 +110,7 @@ async def fortune_cookie(request) -> web.Response:
         "You will travel to many exotic places in your lifetime.",
         "Your ability for accomplishment will follow with success.",
         "Nothing astonishes men so much as common sense and plain dealing.",
-        "Its amazing how much good you can do if you do not care who gets the credit.",
+        "Its amazing how much good you can do if you dont care who gets the credit.",
         "Everyone agrees. You are the best.",
         "Life consist not in holding good cards, but in playing those you hold well.",
         "Jealousy doesn't open doors, it closes them!",
@@ -176,24 +123,10 @@ async def fortune_cookie(request) -> web.Response:
         "Joys are often the shadows, cast by sorrows.",
         "Fortune favors the brave.",
     ]
-    fortune = random.choice(possible)
-    args = {"fortune": fortune}
+    fortune_choice = random.choice(possible)
+    args = {"fortune": fortune_choice}
     page = Page(filename="fortune.html", args=args)
     return page.render()
-
-
-async def menu(request) -> web.Response:
-    """
-    This will return
-    """
-    food_items = [
-        {"item": "General Tzo's Chicken", "description": "Yummy chicken on rice", "price": 12.99},
-        {"item": "Kung Pao Beef", "description": "Spicy Beef on rice", "price": 13.99}
-    ]  # TODO - Update to a sqlite3 database call
-    args = {"foods": food_items}
-    page = Page(filename="menu.html", args=args)
-    return page.render()
-
 
 async def register(add_to_registry=True):
     print(f"""
